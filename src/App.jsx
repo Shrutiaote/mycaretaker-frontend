@@ -16,6 +16,15 @@ import CareSchedule from "./pages/CareSchedule";
 import CaretakerSchedule from "./pages/CaretakerSchedule";
 import CreateCareSchedule from "./pages/CreateCareSchedule";
 import Notifications from "./pages/Notifications";
+import FamilyMemberProfile from "./pages/FamilyMemberProfile";
+import FamilyMemberDashboard from "./pages/FamilyMemberDashboard";
+import MyElderly from "./pages/MyElderly";
+import ConnectElderly from "./pages/ConnectElderly";
+import FamilyHealthInformation from "./pages/FamilyHealthInformation";
+import FamilyFindCaretaker from "./pages/FamilyFindCaretaker";
+import FamilyCareRequests from "./pages/FamilyCareRequests";
+import FamilyCareSchedule from "./pages/FamilyCareSchedule";
+
 
 function App() {
     return (
@@ -99,6 +108,45 @@ function App() {
                   element={<Notifications />}
                />
 
+               <Route
+                  path="/family/dashboard"
+                  element={<FamilyMemberDashboard />}
+               />
+
+               <Route
+                  path="/family/profile"
+                  element={<FamilyMemberProfile />}
+               />
+
+               <Route
+                  path="/family/elderly"
+                  element={<MyElderly />}
+               />
+
+               <Route
+                   path="/family/connect-elderly"
+                   element={<ConnectElderly />}
+               />
+
+               <Route
+                  path="/family/elderly-health-information"
+                  element={<FamilyHealthInformation />}
+               />
+
+               <Route
+                  path="/family/find-caretaker"
+                  element={<FamilyFindCaretaker />}
+               />
+
+               <Route
+                  path="/family/care-requests"
+                  element={<FamilyCareRequests />}
+               />
+
+               <Route
+                  path="/family/care-schedule"
+                  element={<FamilyCareSchedule />}
+               />
 
             </Routes>
 

@@ -1,13 +1,12 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "./ElderlyProfile.css";
 
 function ElderlyProfile() {
-
     const navigate = useNavigate();
 
-    const user = JSON.parse(
-        localStorage.getItem("mycaretaker_user")
-    );
+    const [user, setUser] = useState(null);
 
     const [formData, setFormData] = useState({
         gender: "",
@@ -21,10 +20,78 @@ function ElderlyProfile() {
 
     const [profileExists, setProfileExists] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
 
     useEffect(() => {
+        const savedUser = localStorage.getItem("mycaretaker_user");
+        const loggedInUser = savedUser ? JSON.parse(savedUser) : null;
 
-    const fetchProfile = async () => {
+        if (!loggedInUser) {
+            navigate("/login");
+            return;
+        }
+
+        setUser(loggedInUser);
+
+        const fetchProfile = async () => {
+            try {
+                const response = await fetch(
+                    `http://localhost:8080/api/elderly/user/${loggedInUser.userId}`
+                );
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    setFormData({
+                        gender: result.gender || "",
+                        careRequirements: result.careRequirements || "",
+                        emergencyContactName: result.emergencyContactName || "",
+                        emergencyContactRelationship:
+                            result.emergencyContactRelationship || "",
+                        emergencyContactPhone: result.emergencyContactPhone || "",
+                        preferredCareType: result.preferredCareType || "",
+                        additionalInformation: result.additionalInformation || ""
+                    });
+
+                    if (result.elderlyId != null) {
+                        localStorage.setItem(
+                            "mycaretaker_elderlyId",
+                            result.elderlyId
+                        );
+                    }
+
+                    setProfileExists(true);
+                } else if (response.status === 404) {
+                    setProfileExists(false);
+                } else {
+                    throw new Error("Unable to load your profile.");
+                }
+            } catch (err) {
+                console.error("Failed to load elderly profile:", err);
+                setError(err.message || "Something went wrong while loading your profile.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProfile();
+    }, [navigate]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+
+        setFormData((previousData) => ({
+            ...previousData,
+            [name]: value
+        }));
+
+        setSuccess("");
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
 
         if (!user) {
             navigate("/login");
@@ -32,401 +99,360 @@ function ElderlyProfile() {
         }
 
         try {
+            setSaving(true);
+            setError("");
+            setSuccess("");
+
+            const method = profileExists ? "PUT" : "POST";
 
             const response = await fetch(
-                `http://localhost:8080/api/elderly/user/${user.userId}`
+                `http://localhost:8080/api/elderly/user/${user.userId}`,
+                {
+                    method,
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(formData)
+                }
             );
 
-            if (response.ok) {
+            if (!response.ok) {
+                const errorMessage = await response.text();
+                throw new Error(errorMessage || "Failed to save profile.");
+            }
 
-                const result = await response.json();
+            const result = await response.json();
 
-                setFormData({
-                    gender: result.gender || "",
-                    careRequirements:
-                        result.careRequirements || "",
-                    emergencyContactName:
-                        result.emergencyContactName || "",
-                    emergencyContactRelationship:
-                        result.emergencyContactRelationship || "",
-                    emergencyContactPhone:
-                        result.emergencyContactPhone || "",
-                    preferredCareType:
-                        result.preferredCareType || "",
-                    additionalInformation:
-                        result.additionalInformation || ""
-                });
+            console.log("Elderly profile saved:", result);
 
+            if (result.elderlyId != null) {
                 localStorage.setItem(
                     "mycaretaker_elderlyId",
                     result.elderlyId
                 );
-
-                setProfileExists(true);
             }
 
-        } catch (error) {
+            setProfileExists(true);
 
-            console.error(
-                "Failed to load elderly profile:",
-                error
+            setSuccess(
+                profileExists
+                    ? "Your profile has been updated successfully."
+                    : "Your profile has been created successfully."
             );
 
+        } catch (err) {
+            console.error("Profile save failed:", err);
+            setError(err.message || "Unable to save your profile.");
         } finally {
-
-            setLoading(false);
+            setSaving(false);
         }
     };
 
-    fetchProfile();
-
-}, []);
-
-    const handleChange = (e) => {
-
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
-    };
-
-    const handleSubmit = async (e) => {
-
-    e.preventDefault();
-
-    if (!user) {
-        alert("Please login first.");
-        navigate("/login");
-        return;
-    }
-
-    try {
-
-        const method = profileExists ? "PUT" : "POST";
-
-        const response = await fetch(
-            `http://localhost:8080/api/elderly/user/${user.userId}`,
-            {
-                method: method,
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(formData)
-            }
-        );
-
-        if (!response.ok) {
-
-            const errorMessage =
-                await response.text();
-
-            throw new Error(errorMessage);
-        }
-
-        const result = await response.json();
-
-        console.log(
-            "Elderly profile saved:",
-            result
-        );
-
-        localStorage.setItem(
-            "mycaretaker_elderlyId",
-            result.elderlyId
-        );
-
-        setProfileExists(true);
-
-        alert(
-            profileExists
-                ? "Profile updated successfully!"
-                : "Profile created successfully!"
-        );
-
-        navigate("/elderly/dashboard");
-
-    } catch (error) {
-
-        console.error(
-            "Profile save failed:",
-            error
-        );
-
-        alert(
-            "Profile save failed: " +
-            error.message
+    if (loading) {
+        return (
+            <div className="elderly-profile-page">
+                <div className="profile-loading">
+                    <div className="profile-spinner"></div>
+                    <h2>Loading your profile...</h2>
+                    <p>Please wait a moment.</p>
+                </div>
+            </div>
         );
     }
-};
 
     return (
-        <div>
+        <div className="elderly-profile-page">
 
-            <h1>MyCaretaker - Elderly Profile</h1>
-
-            <p>
-                Complete your profile so we can provide
-                suitable care services.
-            </p>
-
-            <hr />
-
-            <h2>Personal Information</h2>
-
-            <p>
-                <strong>Name:</strong>{" "}
-                {user?.firstName} {user?.lastName}
-            </p>
-
-            <p>
-                <strong>Email:</strong>{" "}
-                {user?.email}
-            </p>
-
-            <p>
-                <strong>Phone:</strong>{" "}
-                {user?.phone}
-            </p>
-
-            <p>
-                <strong>Address:</strong>{" "}
-                {user?.address}
-            </p>
-
-            <hr />
-
-            <form onSubmit={handleSubmit}>
-
-                <h2>Basic Information</h2>
-
+            <div className="profile-page-header">
                 <div>
-                    <label>Gender</label>
-                    <br />
-
-                    <select
-                        name="gender"
-                        value={formData.gender}
-                        onChange={handleChange}
-                        required
-                    >
-
-                        <option value="">
-                            Select Gender
-                        </option>
-
-                        <option value="Male">
-                            Male
-                        </option>
-
-                        <option value="Female">
-                            Female
-                        </option>
-
-                        <option value="Other">
-                            Other
-                        </option>
-
-                    </select>
+                    <span className="profile-eyebrow">MYCARETAKER ACCOUNT</span>
+                    <h1>My Profile</h1>
+                    <p>
+                        Keep your personal and care information up to date
+                        so we can better support your needs.
+                    </p>
                 </div>
 
-                <br />
+                <div className="profile-header-icon">♙</div>
+            </div>
 
-                <h2>Care Requirements</h2>
-
-                <div>
-                    <label>
-                        What kind of assistance do you need?
-                    </label>
-                    <br />
-
-                    <textarea
-                        name="careRequirements"
-                        value={formData.careRequirements}
-                        onChange={handleChange}
-                        placeholder="Example: Walking assistance, medication reminders, bathing assistance, meal assistance..."
-                        rows="5"
-                    />
+            {error && (
+                <div className="profile-message profile-error">
+                    <strong>Unable to continue</strong>
+                    <p>{error}</p>
                 </div>
+            )}
 
-                <br />
-
-                <h2>Preferred Care Type</h2>
-
-                <div>
-                    <label>
-                        Preferred Care Type
-                    </label>
-                    <br />
-
-                    <select
-                        name="preferredCareType"
-                        value={formData.preferredCareType}
-                        onChange={handleChange}
-                    >
-
-                        <option value="">
-                            Select Care Type
-                        </option>
-
-                        <option value="Daily Care">
-                            Daily Care
-                        </option>
-
-                        <option value="Part-Time Care">
-                            Part-Time Care
-                        </option>
-
-                        <option value="Full-Time Care">
-                            Full-Time Care
-                        </option>
-
-                        <option value="Night Care">
-                            Night Care
-                        </option>
-
-                        <option value="Companionship">
-                            Companionship
-                        </option>
-
-                        <option value="Medical Assistance">
-                            Medical Assistance
-                        </option>
-
-                    </select>
+            {success && (
+                <div className="profile-message profile-success">
+                    <strong>Success</strong>
+                    <p>{success}</p>
                 </div>
+            )}
 
-                <br />
+            <div className="profile-layout">
 
-                <h2>Emergency Contact</h2>
+                <aside className="profile-sidebar-card">
+                    <div className="profile-avatar">
+                        {user?.firstName?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
 
-                <div>
-                    <label>
-                        Emergency Contact Name
-                    </label>
-                    <br />
+                    <h2>
+                        {user?.firstName} {user?.lastName}
+                    </h2>
 
-                    <input
-                        type="text"
-                        name="emergencyContactName"
-                        value={
-                            formData.emergencyContactName
-                        }
-                        onChange={handleChange}
-                        placeholder="Enter emergency contact name"
-                    />
-                </div>
+                    <span className="profile-account-label">
+                        Elderly Account
+                    </span>
 
-                <br />
+                    <div className="profile-personal-details">
+                        <div>
+                            <span>Email</span>
+                            <p>{user?.email || "Not provided"}</p>
+                        </div>
 
-                <div>
-                    <label>
-                        Relationship
-                    </label>
-                    <br />
+                        <div>
+                            <span>Phone</span>
+                            <p>{user?.phone || "Not provided"}</p>
+                        </div>
 
-                    <select
-                        name="emergencyContactRelationship"
-                        value={
-                            formData.emergencyContactRelationship
-                        }
-                        onChange={handleChange}
-                    >
+                        <div>
+                            <span>Address</span>
+                            <p>{user?.address || "Not provided"}</p>
+                        </div>
+                    </div>
 
-                        <option value="">
-                            Select Relationship
-                        </option>
+                    <div className="profile-sidebar-note">
+                        <span>♡</span>
+                        <p>
+                            Your personal information helps us connect
+                            you with suitable care services.
+                        </p>
+                    </div>
+                </aside>
 
-                        <option value="Son">
-                            Son
-                        </option>
+                <main className="profile-form-card">
 
-                        <option value="Daughter">
-                            Daughter
-                        </option>
+                    <div className="profile-form-heading">
+                        <div>
+                            <h2>
+                                {profileExists
+                                    ? "Update Your Profile"
+                                    : "Complete Your Profile"}
+                            </h2>
 
-                        <option value="Spouse">
-                            Spouse
-                        </option>
+                            <p>
+                                Fill in the details below.
+                            </p>
+                        </div>
 
-                        <option value="Brother">
-                            Brother
-                        </option>
+                        <span className={`profile-status ${profileExists ? "status-complete" : "status-new"}`}>
+                            {profileExists ? "Profile Created" : "New Profile"}
+                        </span>
+                    </div>
 
-                        <option value="Sister">
-                            Sister
-                        </option>
+                    <form onSubmit={handleSubmit}>
 
-                        <option value="Friend">
-                            Friend
-                        </option>
+                        <section className="profile-form-section">
+                            <div className="form-section-heading">
+                                <span className="form-section-icon">♙</span>
+                                <div>
+                                    <h3>Basic Information</h3>
+                                    <p>Tell us a little about yourself.</p>
+                                </div>
+                            </div>
 
-                        <option value="Other">
-                            Other
-                        </option>
+                            <div className="profile-form-group">
+                                <label htmlFor="gender">
+                                    Gender <span className="required-star">*</span>
+                                </label>
 
-                    </select>
-                </div>
+                                <select
+                                    id="gender"
+                                    name="gender"
+                                    value={formData.gender}
+                                    onChange={handleChange}
+                                    required
+                                >
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </section>
 
-                <br />
+                        <section className="profile-form-section">
+                            <div className="form-section-heading">
+                                <span className="form-section-icon">♡</span>
+                                <div>
+                                    <h3>Care Requirements</h3>
+                                    <p>Describe the assistance you need.</p>
+                                </div>
+                            </div>
 
-                <div>
-                    <label>
-                        Emergency Contact Phone
-                    </label>
-                    <br />
+                            <div className="profile-form-group">
+                                <label htmlFor="careRequirements">
+                                    What kind of assistance do you need?
+                                </label>
 
-                    <input
-                        type="tel"
-                        name="emergencyContactPhone"
-                        value={
-                            formData.emergencyContactPhone
-                        }
-                        onChange={handleChange}
-                        placeholder="Enter emergency contact number"
-                    />
-                </div>
+                                <textarea
+                                    id="careRequirements"
+                                    name="careRequirements"
+                                    rows="4"
+                                    value={formData.careRequirements}
+                                    onChange={handleChange}
+                                    placeholder="Example: Walking assistance, medication reminders, bathing assistance, meal assistance..."
+                                />
+                            </div>
+                        </section>
 
-                <br />
+                        <section className="profile-form-section">
+                            <div className="form-section-heading">
+                                <span className="form-section-icon">◷</span>
+                                <div>
+                                    <h3>Preferred Care Type</h3>
+                                    <p>Choose the type of care you prefer.</p>
+                                </div>
+                            </div>
 
-                <h2>Additional Information</h2>
+                            <div className="profile-form-group">
+                                <label htmlFor="preferredCareType">
+                                    Preferred Care Type
+                                </label>
 
-                <div>
-                    <label>
-                        Additional Information
-                    </label>
-                    <br />
+                                <select
+                                    id="preferredCareType"
+                                    name="preferredCareType"
+                                    value={formData.preferredCareType}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Select Care Type</option>
+                                    <option value="Daily Care">Daily Care</option>
+                                    <option value="Part-Time Care">Part-Time Care</option>
+                                    <option value="Full-Time Care">Full-Time Care</option>
+                                    <option value="Night Care">Night Care</option>
+                                    <option value="Companionship">Companionship</option>
+                                    <option value="Medical Assistance">Medical Assistance</option>
+                                </select>
+                            </div>
+                        </section>
 
-                    <textarea
-                        name="additionalInformation"
-                        value={
-                            formData.additionalInformation
-                        }
-                        onChange={handleChange}
-                        placeholder="Enter any other important information..."
-                        rows="5"
-                    />
-                </div>
+                        <section className="profile-form-section">
+                            <div className="form-section-heading">
+                                <span className="form-section-icon">☎</span>
+                                <div>
+                                    <h3>Emergency Contact</h3>
+                                    <p>Provide someone we can contact in an emergency.</p>
+                                </div>
+                            </div>
 
-                <br />
+                            <div className="profile-form-grid">
+                                <div className="profile-form-group">
+                                    <label htmlFor="emergencyContactName">
+                                        Contact Name
+                                    </label>
 
-               <button type="submit">
-                   {profileExists ? "Update Profile" : "Save Profile"}
-               </button>
+                                    <input
+                                        id="emergencyContactName"
+                                        type="text"
+                                        name="emergencyContactName"
+                                        value={formData.emergencyContactName}
+                                        onChange={handleChange}
+                                        placeholder="Enter contact name"
+                                    />
+                                </div>
 
-                <button
-                    type="button"
-                    onClick={() =>
-                        navigate("/elderly/dashboard")
-                    }
-                    style={{
-                        marginLeft: "10px"
-                    }}
-                >
-                    Cancel
-                </button>
+                                <div className="profile-form-group">
+                                    <label htmlFor="emergencyContactRelationship">
+                                        Relationship
+                                    </label>
 
-            </form>
+                                    <select
+                                        id="emergencyContactRelationship"
+                                        name="emergencyContactRelationship"
+                                        value={formData.emergencyContactRelationship}
+                                        onChange={handleChange}
+                                    >
+                                        <option value="">Select Relationship</option>
+                                        <option value="Son">Son</option>
+                                        <option value="Daughter">Daughter</option>
+                                        <option value="Spouse">Spouse</option>
+                                        <option value="Brother">Brother</option>
+                                        <option value="Sister">Sister</option>
+                                        <option value="Friend">Friend</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
 
+                                <div className="profile-form-group profile-full-width">
+                                    <label htmlFor="emergencyContactPhone">
+                                        Emergency Contact Phone
+                                    </label>
+
+                                    <input
+                                        id="emergencyContactPhone"
+                                        type="tel"
+                                        name="emergencyContactPhone"
+                                        value={formData.emergencyContactPhone}
+                                        onChange={handleChange}
+                                        placeholder="Enter emergency contact number"
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="profile-form-section">
+                            <div className="form-section-heading">
+                                <span className="form-section-icon">✎</span>
+                                <div>
+                                    <h3>Additional Information</h3>
+                                    <p>Share any other important details.</p>
+                                </div>
+                            </div>
+
+                            <div className="profile-form-group">
+                                <label htmlFor="additionalInformation">
+                                    Additional Information
+                                </label>
+
+                                <textarea
+                                    id="additionalInformation"
+                                    name="additionalInformation"
+                                    rows="4"
+                                    value={formData.additionalInformation}
+                                    onChange={handleChange}
+                                    placeholder="Enter any other important information..."
+                                />
+                            </div>
+                        </section>
+
+                        <div className="profile-form-actions">
+                            <button
+                                type="button"
+                                className="profile-cancel-btn"
+                                onClick={() => navigate("/elderly/dashboard")}
+                                disabled={saving}
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="submit"
+                                className="profile-save-btn"
+                                disabled={saving}
+                            >
+                                {saving
+                                    ? "Saving..."
+                                    : profileExists
+                                        ? "Update Profile"
+                                        : "Save Profile"}
+                            </button>
+                        </div>
+
+                    </form>
+                </main>
+            </div>
         </div>
     );
 }

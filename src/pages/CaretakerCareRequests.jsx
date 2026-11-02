@@ -6,105 +6,73 @@ function CaretakerCareRequests() {
 
     const navigate = useNavigate();
 
+    const user = JSON.parse(
+        localStorage.getItem("mycaretaker_user")
+    );
+
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [message, setMessage] = useState("");
+
+    const loadRequests = async () => {
+
+        try {
+
+            const profileResponse = await fetch(
+                `http://localhost:8080/api/caretakers/user/${user.userId}`
+            );
+
+            if (!profileResponse.ok) {
+                throw new Error(
+                    "Caretaker profile not found"
+                );
+            }
+
+            const caretaker =
+                await profileResponse.json();
+
+            const response = await fetch(
+                `http://localhost:8080/api/care-requests/caretaker/${caretaker.caretakerId}`
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Unable to load care requests"
+                );
+            }
+
+            const data = await response.json();
+
+            setRequests(data);
+
+        } catch (error) {
+
+            console.error(error);
+
+            setMessage(
+                "Unable to load care requests."
+            );
+
+        } finally {
+
+            setLoading(false);
+        }
+    };
+
 
     useEffect(() => {
 
-        const savedUser =
-            localStorage.getItem("mycaretaker_user");
-
-        if (!savedUser) {
-
-            alert("Please login first.");
+        if (!user) {
             navigate("/login");
             return;
         }
 
-        const user = JSON.parse(savedUser);
+        loadRequests();
 
-        const fetchCaretakerProfile = async () => {
-
-            try {
-
-                const response = await fetch(
-                    `http://localhost:8080/api/caretakers/user/${user.userId}`
-                );
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        "Caretaker profile not found"
-                    );
-                }
-
-                const caretaker =
-                    await response.json();
-
-                await fetchRequests(
-                    caretaker.caretakerId
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "Failed to load caretaker profile:",
-                    error
-                );
-
-                alert(
-                    "Unable to load caretaker profile."
-                );
-
-                setLoading(false);
-            }
-        };
+    }, [navigate, user?.userId]);
 
 
-        const fetchRequests = async (caretakerId) => {
-
-            try {
-
-                const response = await fetch(
-                    `http://localhost:8080/api/care-requests/caretaker/${caretakerId}`
-                );
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        "Failed to load care requests"
-                    );
-                }
-
-                const result =
-                    await response.json();
-
-                setRequests(result);
-
-            } catch (error) {
-
-                console.error(
-                    "Failed to load care requests:",
-                    error
-                );
-
-                alert(
-                    "Failed to load care requests."
-                );
-
-            } finally {
-
-                setLoading(false);
-            }
-        };
-
-
-        fetchCaretakerProfile();
-
-    }, [navigate]);
-
-
-    const updateRequestStatus = async (
+    const updateStatus = async (
         careRequestId,
         status
     ) => {
@@ -119,213 +87,236 @@ function CaretakerCareRequests() {
             );
 
             if (!response.ok) {
-
-                const errorMessage =
-                    await response.text();
-
-                throw new Error(errorMessage);
+                throw new Error(
+                    "Unable to update request status"
+                );
             }
-
-            const updatedRequest =
-                await response.json();
-
-            setRequests((previousRequests) =>
-                previousRequests.map((request) =>
-                    request.careRequestId === careRequestId
-                        ? updatedRequest
-                        : request
-                )
-            );
 
             alert(
                 `Care request ${status.toLowerCase()} successfully!`
             );
 
+            loadRequests();
+
         } catch (error) {
 
-            console.error(
-                "Failed to update request:",
-                error
-            );
+            console.error(error);
 
             alert(
-                "Failed to update request: " +
-                error.message
+                "Unable to update care request."
             );
         }
     };
 
 
     if (loading) {
-
-        return (
-            <div>
-
-                <h1>Care Requests</h1>
-
-                <p>
-                    Loading care requests...
-                </p>
-
-            </div>
-        );
+        return <p>Loading care requests...</p>;
     }
 
 
     return (
         <div>
 
-            <h1>Care Requests</h1>
+            <h1>MyCaretaker</h1>
 
-            <p>
-                View and manage requests from elderly persons.
-            </p>
+            <h2>Care Requests</h2>
 
             <hr />
 
+            {message && (
+                <p>{message}</p>
+            )}
+
+
             {requests.length === 0 ? (
 
-                <div>
-
-                    <h2>No Care Requests</h2>
-
-                    <p>
-                        You currently have no care requests.
-                    </p>
-
-                </div>
+                <p>
+                    No care requests found.
+                </p>
 
             ) : (
 
-                <div>
+                requests.map((request) => (
 
-                    <h2>
-                        Requests: {requests.length}
-                    </h2>
+                    <div
+                        key={request.careRequestId}
+                        style={{
+                            border: "1px solid #ccc",
+                            padding: "15px",
+                            marginBottom: "20px"
+                        }}
+                    >
 
-                    {requests.map((request) => (
-
-                        <div
-                            key={request.careRequestId}
-                            style={{
-                                border: "1px solid #ccc",
-                                padding: "15px",
-                                marginBottom: "15px"
-                            }}
-                        >
-
-                            <h3>
-                                Care Request #
-                                {request.careRequestId}
-                            </h3>
-
-                            <p>
-                                <strong>
-                                    Elderly Person:
-                                </strong>{" "}
-                                {request.elderly?.user?.firstName}{" "}
-                                {request.elderly?.user?.lastName}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Email:
-                                </strong>{" "}
-                                {request.elderly?.user?.email}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Phone:
-                                </strong>{" "}
-                                {request.elderly?.user?.phone}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Message:
-                                </strong>{" "}
-                                {request.message}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Request Date:
-                                </strong>{" "}
-                                {request.requestDate
-                                    ? new Date(
-                                        request.requestDate
-                                    ).toLocaleString()
-                                    : "Not available"}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Status:
-                                </strong>{" "}
-                                {request.status}
-                            </p>
+                        <h3>
+                            Care Request #
+                            {request.careRequestId}
+                        </h3>
 
 
-                           <div>
+                        <p>
+                            <strong>Request Type:</strong>{" "}
+                            {request.familyMember
+                                ? "FAMILY_MEMBER_REQUEST"
+                                : "ELDERLY_REQUEST"}
+                        </p>
 
-                          <button
-                           onClick={() =>
-                            navigate(`/caretaker/create-schedule/${request.careRequestId}` )
-                            }
-                            >Create Care Schedule
-                            </button>
+
+                        <hr />
+
+
+                        <h3>
+                            Elderly Person
+                        </h3>
+
+                        <p>
+                            <strong>Name:</strong>{" "}
+                            {request.elderly?.user?.firstName}{" "}
+                            {request.elderly?.user?.lastName}
+                        </p>
+
+                        <p>
+                            <strong>Email:</strong>{" "}
+                            {request.elderly?.user?.email}
+                        </p>
+
+                        <p>
+                            <strong>Phone:</strong>{" "}
+                            {request.elderly?.user?.phone}
+                        </p>
+
+
+                        {request.familyMember && (
+                            <div>
+
+                                <hr />
+
+                                <h3>
+                                    Requested By
+                                </h3>
+
+                                <p>
+                                    <strong>Name:</strong>{" "}
+                                    {request.familyMember?.user?.firstName}{" "}
+                                    {request.familyMember?.user?.lastName}
+                                </p>
+
+                                <p>
+                                    <strong>Email:</strong>{" "}
+                                    {request.familyMember?.user?.email}
+                                </p>
+
+                                <p>
+                                    <strong>Phone:</strong>{" "}
+                                    {request.familyMember?.user?.phone}
+                                </p>
+
+                            </div>
+                        )}
+
+
+                        <hr />
+
+
+                        <h3>
+                            Request Details
+                        </h3>
+
+                        <p>
+                            <strong>Message:</strong>{" "}
+                            {request.message ||
+                                "No message provided"}
+                        </p>
+
+                        <p>
+                            <strong>Status:</strong>{" "}
+                            {request.status}
+                        </p>
+
+                        <p>
+                            <strong>Request Date:</strong>{" "}
+                            {request.requestDate
+                                ? new Date(
+                                    request.requestDate
+                                ).toLocaleString()
+                                : "Not available"}
+                        </p>
+
+
+                        <hr />
+
+
+                        {request.status === "PENDING" && (
+
+                            <div>
+
+                                <button
+                                    onClick={() =>
+                                        updateStatus(
+                                            request.careRequestId,
+                                            "ACCEPTED"
+                                        )
+                                    }
+                                >
+                                    Accept
+                                </button>
+
+                                {" "}
+
+                                <button
+                                    onClick={() =>
+                                        updateStatus(
+                                            request.careRequestId,
+                                            "REJECTED"
+                                        )
+                                    }
+                                >
+                                    Reject
+                                </button>
 
                             </div>
 
-
-                            {request.status?.trim().toUpperCase() === "PENDING" && (
-
-                                <div>
-
-                                    <button
-                                        onClick={() =>
-                                            updateRequestStatus(
-                                                request.careRequestId,
-                                                "ACCEPTED"
-                                            )
-                                        }
-                                    >
-                                        Accept
-                                    </button>
-
-                                    {" "}
-
-                                    <button
-                                        onClick={() =>
-                                            updateRequestStatus(
-                                                request.careRequestId,
-                                                "REJECTED"
-                                            )
-                                        }
-                                    >
-                                        Reject
-                                    </button>
-
-                                </div>
-
-                            )}
+                        )}
 
 
-                            {request.status?.trim().toUpperCase() === "REJECTED" && (
+                        {request.status === "ACCEPTED" && (
+
+                            <div>
 
                                 <p>
-                                    This care request was rejected.
+                                    This request has been
+                                    accepted.
                                 </p>
 
-                            )}
+                                <button
+                                    onClick={() =>
+                                        navigate(
+                                            `/caretaker/create-schedule/${request.careRequestId}`
+                                        )
+                                    }
+                                >
+                                    Create Care Schedule
+                                </button>
 
-                        </div>
+                            </div>
 
-                    ))}
+                        )}
 
-                </div>
+
+                        {request.status === "REJECTED" && (
+
+                            <p>
+                                This request has been
+                                rejected.
+                            </p>
+
+                        )}
+
+                    </div>
+
+                ))
+
             )}
+
 
             <br />
 

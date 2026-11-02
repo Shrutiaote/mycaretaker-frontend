@@ -1,5 +1,7 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "./ViewHealthInformation.css";
 
 function ViewHealthInformation() {
 
@@ -7,6 +9,7 @@ function ViewHealthInformation() {
 
     const [healthData, setHealthData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
     useEffect(() => {
 
@@ -17,9 +20,6 @@ function ViewHealthInformation() {
             );
 
             if (!elderlyId) {
-                alert(
-                    "Please complete your elderly profile first."
-                );
                 navigate("/elderly/profile");
                 return;
             }
@@ -37,12 +37,11 @@ function ViewHealthInformation() {
 
                 if (!response.ok) {
                     throw new Error(
-                        "Failed to load health information"
+                        "Failed to load health information."
                     );
                 }
 
                 const result = await response.json();
-
                 setHealthData(result);
 
             } catch (error) {
@@ -52,12 +51,11 @@ function ViewHealthInformation() {
                     error
                 );
 
-                alert(
-                    "Failed to load health information."
+                setError(
+                    "Unable to load your health information. Please try again."
                 );
 
             } finally {
-
                 setLoading(false);
             }
         };
@@ -66,144 +64,352 @@ function ViewHealthInformation() {
 
     }, [navigate]);
 
+    const getValue = (value) => {
+        return value && String(value).trim()
+            ? value
+            : "Not provided";
+    };
+
+    const DetailCard = ({ icon, title, value }) => (
+
+        <div className="health-detail-card">
+
+            <div className="health-detail-card-heading">
+                <span className="health-detail-icon">{icon}</span>
+                <h3>{title}</h3>
+            </div>
+
+            <p className={
+                value === "Not provided"
+                    ? "health-detail-value not-provided"
+                    : "health-detail-value"
+            }>
+                {value}
+            </p>
+
+        </div>
+    );
+
     if (loading) {
 
         return (
-            <div>
-                <h1>Health Information</h1>
-                <p>Loading health information...</p>
+            <div className="view-health-loading">
+                <div className="view-health-spinner"></div>
+                <h3>Loading Health Information</h3>
+                <p>Please wait while we retrieve your records.</p>
             </div>
         );
     }
 
     return (
-        <div>
 
-            <h1>My Health Information</h1>
+        <div className="view-health-page">
 
-            <hr />
+            {/* Page Header */}
 
-            {!healthData ? (
+            <div className="view-health-header">
 
                 <div>
+                    <p className="view-health-eyebrow">
+                        HEALTH RECORDS
+                    </p>
+
+                    <h1>My Health Information</h1>
 
                     <p>
-                        No health information has been
-                        added yet.
+                        View your medical details and important
+                        health information in one place.
+                    </p>
+                </div>
+
+                {healthData && (
+                    <button
+                        className="edit-health-button"
+                        onClick={() =>
+                            navigate("/elderly/health-information")
+                        }
+                    >
+                        ✎ Edit Information
+                    </button>
+                )}
+
+            </div>
+
+            {/* Error State */}
+
+            {error ? (
+
+                <div className="view-health-empty error-state">
+                    <div className="view-health-empty-icon">!</div>
+                    <h2>Unable to Load Records</h2>
+                    <p>{error}</p>
+
+                    <button
+                        className="edit-health-button"
+                        onClick={() => window.location.reload()}
+                    >
+                        Try Again
+                    </button>
+                </div>
+
+            ) : !healthData ? (
+
+                /* Empty State */
+
+                <div className="view-health-empty">
+
+                    <div className="view-health-empty-icon">
+                        ♡
+                    </div>
+
+                    <h2>No Health Information Yet</h2>
+
+                    <p>
+                        You haven't added your medical details yet.
+                        Add your health information to keep your
+                        medical records organized.
                     </p>
 
                     <button
+                        className="edit-health-button"
                         onClick={() =>
-                            navigate(
-                                "/elderly/health-information"
-                            )
+                            navigate("/elderly/health-information")
                         }
                     >
-                        Add Health Information
+                        + Add Health Information
                     </button>
 
                 </div>
 
             ) : (
 
-                <div>
+                <>
 
-                    <p>
-                        <strong>Blood Group:</strong>{" "}
-                        {healthData.bloodGroup || "Not provided"}
-                    </p>
+                    {/* Summary Cards */}
 
-                    <p>
-                        <strong>
-                            Medical Conditions:
-                        </strong>{" "}
-                        {healthData.medicalConditions ||
-                            "Not provided"}
-                    </p>
+                    <div className="health-overview-grid">
 
-                    <p>
-                        <strong>Allergies:</strong>{" "}
-                        {healthData.allergies ||
-                            "Not provided"}
-                    </p>
+                        <div className="health-overview-card">
+                            <div className="overview-icon blood-icon">
+                                ✚
+                            </div>
 
-                    <p>
-                        <strong>
-                            Current Medications:
-                        </strong>{" "}
-                        {healthData.currentMedications ||
-                            "Not provided"}
-                    </p>
+                            <div>
+                                <p>Blood Group</p>
+                                <h2>{getValue(healthData.bloodGroup)}</h2>
+                            </div>
+                        </div>
 
-                    <p>
-                        <strong>Past Surgeries:</strong>{" "}
-                        {healthData.pastSurgeries ||
-                            "Not provided"}
-                    </p>
+                        <div className="health-overview-card">
+                            <div className="overview-icon mobility-icon">
+                                ♿
+                            </div>
 
-                    <p>
-                        <strong>
-                            Mobility Status:
-                        </strong>{" "}
-                        {healthData.mobilityStatus ||
-                            "Not provided"}
-                    </p>
+                            <div>
+                                <p>Mobility Status</p>
+                                <h2>
+                                    {getValue(healthData.mobilityStatus)}
+                                </h2>
+                            </div>
+                        </div>
 
-                    <p>
-                        <strong>
-                            Dietary Requirements:
-                        </strong>{" "}
-                        {healthData.dietaryRequirements ||
-                            "Not provided"}
-                    </p>
+                        <div className="health-overview-card">
+                            <div className="overview-icon doctor-icon">
+                                ♡
+                            </div>
 
-                    <p>
-                        <strong>Doctor Name:</strong>{" "}
-                        {healthData.doctorName ||
-                            "Not provided"}
-                    </p>
+                            <div>
+                                <p>Doctor</p>
+                                <h2>{getValue(healthData.doctorName)}</h2>
+                            </div>
+                        </div>
 
-                    <p>
-                        <strong>Doctor Contact:</strong>{" "}
-                        {healthData.doctorContact ||
-                            "Not provided"}
-                    </p>
+                    </div>
 
-                    <p>
-                        <strong>
-                            Additional Information:
-                        </strong>{" "}
-                        {healthData.additionalHealthInformation ||
-                            "Not provided"}
-                    </p>
+                    {/* Medical Details */}
 
-                    <br />
+                    <section className="view-health-section">
 
+                        <div className="view-health-section-heading">
+                            <span>✚</span>
+
+                            <div>
+                                <h2>Medical Details</h2>
+                                <p>
+                                    Your health conditions and allergies.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="health-detail-grid">
+
+                            <DetailCard
+                                icon="♡"
+                                title="Medical Conditions"
+                                value={getValue(healthData.medicalConditions)}
+                            />
+
+                            <DetailCard
+                                icon="!"
+                                title="Allergies"
+                                value={getValue(healthData.allergies)}
+                            />
+
+                        </div>
+
+                    </section>
+
+                    {/* Medication and History */}
+
+                    <section className="view-health-section">
+
+                        <div className="view-health-section-heading">
+                            <span>▤</span>
+
+                            <div>
+                                <h2>Medication & Medical History</h2>
+                                <p>
+                                    Your current treatments and previous surgeries.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="health-detail-grid">
+
+                            <DetailCard
+                                icon="✚"
+                                title="Current Medications"
+                                value={getValue(healthData.currentMedications)}
+                            />
+
+                            <DetailCard
+                                icon="▤"
+                                title="Past Surgeries"
+                                value={getValue(healthData.pastSurgeries)}
+                            />
+
+                        </div>
+
+                    </section>
+
+                    {/* Dietary Information */}
+
+                    <section className="view-health-section">
+
+                        <div className="view-health-section-heading">
+                            <span>♡</span>
+
+                            <div>
+                                <h2>Dietary Requirements</h2>
+                                <p>
+                                    Special dietary needs and restrictions.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="health-detail-grid">
+
+                            <DetailCard
+                                icon="♧"
+                                title="Dietary Requirements"
+                                value={getValue(healthData.dietaryRequirements)}
+                            />
+
+                        </div>
+
+                    </section>
+
+                    {/* Doctor Information */}
+
+                    <section className="view-health-section">
+
+                        <div className="view-health-section-heading">
+                            <span>✚</span>
+
+                            <div>
+                                <h2>Doctor Information</h2>
+                                <p>
+                                    Your doctor's contact details.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="health-detail-grid">
+
+                            <DetailCard
+                                icon="♙"
+                                title="Doctor Name"
+                                value={getValue(healthData.doctorName)}
+                            />
+
+                            <DetailCard
+                                icon="☎"
+                                title="Doctor Contact"
+                                value={getValue(healthData.doctorContact)}
+                            />
+
+                        </div>
+
+                    </section>
+
+                    {/* Additional Information */}
+
+                    <section className="view-health-section">
+
+                        <div className="view-health-section-heading">
+                            <span>ⓘ</span>
+
+                            <div>
+                                <h2>Additional Information</h2>
+                                <p>
+                                    Other important details about your health.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="health-detail-grid">
+
+                            <DetailCard
+                                icon="▤"
+                                title="Additional Health Information"
+                                value={getValue(
+                                    healthData.additionalHealthInformation
+                                )}
+                            />
+
+                        </div>
+
+                    </section>
+
+                </>
+
+            )}
+
+            {/* Bottom Navigation */}
+
+            <div className="view-health-bottom-actions">
+
+                <button
+                    className="view-health-back-button"
+                    onClick={() =>
+                        navigate("/elderly/dashboard")
+                    }
+                >
+                    ← Back to Dashboard
+                </button>
+
+                {healthData && (
                     <button
+                        className="edit-health-button"
                         onClick={() =>
-                            navigate(
-                                "/elderly/health-information"
-                            )
+                            navigate("/elderly/health-information")
                         }
                     >
                         Edit Health Information
                     </button>
+                )}
 
-                    <button
-                        onClick={() =>
-                            navigate(
-                                "/elderly/dashboard"
-                            )
-                        }
-                        style={{
-                            marginLeft: "10px"
-                        }}
-                    >
-                        Back to Dashboard
-                    </button>
-
-                </div>
-            )}
+            </div>
 
         </div>
     );
